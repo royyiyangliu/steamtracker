@@ -1,0 +1,14 @@
+{
+  "games": [
+    {"name": "Dota 2",              "appid": 570},
+    {"name": "Counter-Strike 2",    "appid": 730},
+    {"name": "Warframe",            "appid": 230410},
+    {"name": "Path of Exile",       "appid": 238960},
+    {"name": "PUBG: BATTLEGROUNDS", "appid": 578080},
+    {"name": "Apex Legends",        "appid": 1172470},
+    {"name": "NARAKA: BLADEPOINT",  "appid": 1203220},
+    {"name": "Delta Force",         "appid": 2507950},
+    {"name": "Marvel Rivals",       "appid": 2767030},
+    {"name": "Where Winds Meet",    "appid": 3564740}
+  ]
+}
