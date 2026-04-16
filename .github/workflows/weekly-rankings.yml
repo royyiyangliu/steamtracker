@@ -1,0 +1,39 @@
+name: 每周排名更新
+
+on:
+  schedule:
+    # 每周三 UTC 12:00（Steam 周二更新后次日）
+    - cron: '0 12 * * 3'
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-rankings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装 Playwright
+        run: |
+          pip install playwright
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: 运行排名抓取
+        run: python scripts/fetch_rankings.py
+
+      - name: 提交并推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/rankings.json
+          git diff --staged --quiet || git commit -m "data: weekly rankings $(date -u +%Y-%m-%d)"
+          git push

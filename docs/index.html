@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Steam 每日峰值在线人数</title>
+  <title>Steam 数据追踪</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,13 +19,36 @@
     .header {
       background: #1a1a2e;
       color: #fff;
-      padding: 18px 32px;
+      padding: 14px 32px;
       display: flex;
-      align-items: baseline;
-      gap: 16px;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
     }
-    .header h1 { font-size: 20px; font-weight: 600; }
-    .header .meta { font-size: 12px; color: #888; }
+    .header h1 { font-size: 19px; font-weight: 600; white-space: nowrap; }
+    .header .meta { font-size: 12px; color: #888; flex: 1; min-width: 200px; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 6px;
+      padding: 3px;
+    }
+    .tab-btn {
+      padding: 6px 18px;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .tab-btn.active { background: #5470c6; color: #fff; }
 
     /* ── Layout ── */
     .container { max-width: 1440px; margin: 0 auto; padding: 20px 32px; }
@@ -40,12 +63,7 @@
     }
 
     /* ── Filters ── */
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      align-items: flex-start;
-    }
+    .filters { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
     .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .filter-label { font-size: 13px; color: #666; font-weight: 500; white-space: nowrap; }
 
@@ -67,86 +85,78 @@
 
     .game-checks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 2px; }
     .game-check {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      cursor: pointer;
-      font-size: 13px;
-      user-select: none;
+      display: flex; align-items: center; gap: 5px;
+      cursor: pointer; font-size: 13px; user-select: none;
     }
     .game-check input { cursor: pointer; accent-color: #5470c6; width: 14px; height: 14px; }
     .color-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
     /* ── Chart ── */
-    #chart { width: 100%; height: 460px; }
+    .chart-box { width: 100%; height: 460px; }
 
     /* ── Table ── */
     .table-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
     }
     .table-title { font-size: 13px; font-weight: 600; color: #555; }
     .table-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
 
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead th {
-      position: sticky;
-      top: 0;
-      background: #fafafa;
-      padding: 9px 14px;
-      text-align: right;
-      font-weight: 600;
+      position: sticky; top: 0;
+      background: #fafafa; padding: 9px 14px;
+      text-align: right; font-weight: 600;
       border-bottom: 2px solid #e8e8e8;
-      white-space: nowrap;
-      z-index: 2;
-      color: #444;
+      white-space: nowrap; z-index: 2; color: #444;
     }
     thead th:first-child {
-      text-align: left;
-      position: sticky;
-      left: 0;
-      z-index: 3;
-      background: #fafafa;
+      text-align: left; position: sticky; left: 0; z-index: 3; background: #fafafa;
     }
     tbody td {
-      padding: 7px 14px;
-      text-align: right;
-      border-bottom: 1px solid #f5f5f5;
-      white-space: nowrap;
+      padding: 7px 14px; text-align: right;
+      border-bottom: 1px solid #f5f5f5; white-space: nowrap;
     }
     tbody td:first-child {
-      text-align: left;
-      position: sticky;
-      left: 0;
-      background: #fff;
-      font-weight: 500;
-      z-index: 1;
-      color: #555;
+      text-align: left; position: sticky; left: 0;
+      background: #fff; font-weight: 500; z-index: 1; color: #555;
     }
     tbody tr:hover td { background: #f7f9ff; }
     tbody tr:hover td:first-child { background: #f7f9ff; }
     .null-val { color: #d0d0d0; }
 
-    /* ── Loading / Error ── */
+    /* 排名单元格颜色 */
+    .rank-top3  { color: #c0392b; font-weight: 700; }
+    .rank-top10 { color: #e67e22; font-weight: 600; }
+    .rank-top50 { color: #27ae60; }
+
+    /* ── Pane 切换 ── */
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    /* ── Loading ── */
     .loading { text-align: center; padding: 80px; color: #999; font-size: 15px; }
+    .empty-hint { text-align: center; padding: 60px; color: #bbb; font-size: 14px; }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>Steam 每日峰值在线人数</h1>
+  <h1>Steam 数据追踪</h1>
   <span class="meta" id="meta">加载中...</span>
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="players">在线人数</button>
+    <button class="tab-btn" data-tab="rankings">畅销榜排名</button>
+  </div>
 </div>
 
 <div class="container">
 
-  <!-- Filters -->
+  <!-- ── 公共筛选器 ── -->
   <div class="card hidden" id="filter-card">
     <div class="filters">
-      <div class="filter-group">
+      <!-- 时间范围：仅在线人数 tab 显示 -->
+      <div class="filter-group" id="range-group">
         <span class="filter-label">时间范围：</span>
         <div class="btn-group" id="range-btns">
           <button class="btn" data-range="1M">1个月</button>
@@ -156,6 +166,7 @@
           <button class="btn" data-range="ALL">全部</button>
         </div>
       </div>
+      <!-- 游戏选择：两个 tab 共用 -->
       <div class="filter-group" style="align-items:flex-start">
         <span class="filter-label" style="margin-top:3px">游戏：</span>
         <div>
@@ -166,21 +177,36 @@
     </div>
   </div>
 
-  <!-- Chart -->
-  <div class="card hidden" id="chart-card">
-    <div id="chart"></div>
+  <!-- ── Tab：在线人数 ── -->
+  <div class="pane active" id="pane-players">
+    <div class="card hidden" id="chart-players-card">
+      <div id="chart-players" class="chart-box"></div>
+    </div>
+    <div class="card hidden" id="table-players-card">
+      <div class="table-header">
+        <span class="table-title" id="players-table-title"></span>
+      </div>
+      <div class="table-scroll">
+        <table><thead id="players-thead"></thead><tbody id="players-tbody"></tbody></table>
+      </div>
+    </div>
   </div>
 
-  <!-- Table -->
-  <div class="card hidden" id="table-card">
-    <div class="table-header">
-      <span class="table-title" id="table-title"></span>
+  <!-- ── Tab：畅销榜排名 ── -->
+  <div class="pane" id="pane-rankings">
+    <div class="card hidden" id="chart-rankings-card">
+      <div id="chart-rankings" class="chart-box"></div>
     </div>
-    <div class="table-scroll">
-      <table>
-        <thead id="table-head"></thead>
-        <tbody id="table-body"></tbody>
-      </table>
+    <div class="card hidden" id="table-rankings-card">
+      <div class="table-header">
+        <span class="table-title" id="rankings-table-title"></span>
+      </div>
+      <div class="table-scroll">
+        <table><thead id="rankings-thead"></thead><tbody id="rankings-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="card hidden" id="rankings-empty">
+      <div class="empty-hint">排名数据尚未采集。<br>GitHub Actions 每周三自动运行后将在此显示。</div>
     </div>
   </div>
 
@@ -189,28 +215,37 @@
 </div>
 
 <script>
-  // ── ECharts 颜色（与游戏顺序对应）
   const COLORS = [
     '#5470c6','#91cc75','#fac858','#ee6666',
     '#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#4ecdc4'
   ];
 
-  let G = null;          // games.json 数据
-  let chart = null;
+  let GPlayers  = null;  // games.json
+  let GRankings = null;  // rankings.json
+  let chartPlayers  = null;
+  let chartRankings = null;
+  let activeTab = 'players';
   let selectedRange = '6M';
   let selectedGames = new Set();
 
-  // ── 格式化数字
+  // ══ 工具函数 ══════════════════════════════
+
   function fmtNum(n) {
     if (n == null) return '<span class="null-val">—</span>';
     return n.toLocaleString('en-US');
   }
 
-  // ── 获取时间范围起始日期
+  function fmtRank(n) {
+    if (n == null) return '<span class="null-val">—</span>';
+    let cls = n <= 3 ? 'rank-top3' : n <= 10 ? 'rank-top10' : n <= 50 ? 'rank-top50' : '';
+    return `<span class="${cls}">#${n}</span>`;
+  }
+
   function getStartDate() {
-    const lastDate = new Date(G.dates[G.dates.length - 1] + 'T00:00:00');
-    if (selectedRange === 'ALL') return new Date(G.dates[0] + 'T00:00:00');
-    const d = new Date(lastDate);
+    const dates = GPlayers.dates;
+    const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+    if (selectedRange === 'ALL') return new Date(dates[0] + 'T00:00:00');
+    const d = new Date(last);
     if      (selectedRange === '1M') d.setMonth(d.getMonth() - 1);
     else if (selectedRange === '3M') d.setMonth(d.getMonth() - 3);
     else if (selectedRange === '6M') d.setMonth(d.getMonth() - 6);
@@ -218,172 +253,263 @@
     return d;
   }
 
-  // ── 获取在时间范围内的索引（升序）
-  function getIndices() {
+  function getPlayerIndices() {
     const start = getStartDate();
-    const result = [];
-    for (let i = 0; i < G.dates.length; i++) {
-      if (new Date(G.dates[i] + 'T00:00:00') >= start) result.push(i);
+    const res = [];
+    for (let i = 0; i < GPlayers.dates.length; i++) {
+      if (new Date(GPlayers.dates[i] + 'T00:00:00') >= start) res.push(i);
     }
-    return result;
+    return res;
   }
 
-  // ── 渲染折线图
-  function renderChart() {
-    if (!chart) chart = echarts.init(document.getElementById('chart'));
+  function activeGames() {
+    return GPlayers.games.filter(g => selectedGames.has(g));
+  }
 
-    const indices = getIndices();
-    const dates = indices.map(i => G.dates[i]);
-    const activeGames = G.games.filter(g => selectedGames.has(g));
+  // ══ 在线人数 Tab ══════════════════════════
 
-    const series = activeGames.map(name => {
-      const colorIdx = G.games.indexOf(name);
-      // 仅保留有值的点，避免 null 被连线
-      const seriesData = indices.map(i => {
-        const v = G.data[name][i];
-        return v != null ? v : null;
-      });
+  function renderPlayersChart() {
+    if (!chartPlayers) chartPlayers = echarts.init(document.getElementById('chart-players'));
+    const indices = getPlayerIndices();
+    const dates   = indices.map(i => GPlayers.dates[i]);
+    const series  = activeGames().map(name => {
+      const ci = GPlayers.games.indexOf(name);
       return {
-        name,
-        type: 'line',
-        symbol: 'none',
+        name, type: 'line', symbol: 'none',
         lineStyle: { width: 1.8 },
-        color: COLORS[colorIdx % COLORS.length],
-        data: seriesData,
+        color: COLORS[ci % COLORS.length],
+        data: indices.map(i => GPlayers.data[name][i]),
+        connectNulls: false,
+      };
+    });
+    chartPlayers.setOption({
+      animation: false,
+      tooltip: {
+        trigger: 'axis',
+        formatter(params) {
+          let html = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${params[0]?.axisValue}</div>`;
+          [...params].filter(p => p.value != null)
+            .sort((a, b) => b.value - a.value)
+            .forEach(p => {
+              html += `<div style="margin:3px 0;display:flex;justify-content:space-between;gap:20px">
+                <span>${p.marker}${p.seriesName}</span>
+                <b>${p.value.toLocaleString('en-US')}</b></div>`;
+            });
+          return html;
+        },
+      },
+      legend: { data: activeGames(), bottom: 4, type: 'scroll', textStyle: { fontSize: 12 } },
+      grid: { top: 20, right: 24, bottom: 48, left: 72 },
+      xAxis: {
+        type: 'category', data: dates, boundaryGap: false,
+        axisLabel: { formatter: v => v.slice(0, 7) },
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: '#f0f0f0' } },
+        axisLabel: {
+          formatter: v => v >= 1000000 ? (v/10000).toFixed(0)+'万'
+                       : v >= 10000   ? (v/10000).toFixed(1)+'万'
+                       : v.toString(),
+        },
+      },
+      series,
+    }, true);
+  }
+
+  function renderPlayersTable() {
+    const ag = activeGames();
+    const indices = getPlayerIndices().reverse();
+    document.getElementById('players-thead').innerHTML =
+      '<tr><th>日期</th>' + ag.map(g => `<th>${g}</th>`).join('') + '</tr>';
+    document.getElementById('players-tbody').innerHTML =
+      indices.map(i =>
+        `<tr><td>${GPlayers.dates[i]}</td>${ag.map(g => `<td>${fmtNum(GPlayers.data[g][i])}</td>`).join('')}</tr>`
+      ).join('');
+    document.getElementById('players-table-title').textContent = `数据明细（${indices.length} 天）`;
+  }
+
+  // ══ 畅销榜排名 Tab ════════════════════════
+
+  function renderRankingsChart() {
+    if (!GRankings || !GRankings.weeks || GRankings.weeks.length === 0) return;
+    if (!chartRankings) chartRankings = echarts.init(document.getElementById('chart-rankings'));
+
+    const weeks = GRankings.weeks;
+    const series = activeGames().map(name => {
+      const ci = GPlayers.games.indexOf(name);
+      const rankData = GRankings.data[name] || [];
+      return {
+        name, type: 'line',
+        symbol: 'circle', symbolSize: 6,
+        lineStyle: { width: 2 },
+        color: COLORS[ci % COLORS.length],
+        data: weeks.map((_, i) => rankData[i] ?? null),
         connectNulls: false,
       };
     });
 
-    chart.setOption({
+    chartRankings.setOption({
       animation: false,
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', crossStyle: { color: '#999' } },
         formatter(params) {
-          const date = params[0]?.axisValue || '';
-          let html = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${date}</div>`;
-          const sorted = [...params]
-            .filter(p => p.value != null)
-            .sort((a, b) => b.value - a.value);
-          sorted.forEach(p => {
-            html += `<div style="margin:3px 0;display:flex;justify-content:space-between;gap:20px">
-              <span>${p.marker}${p.seriesName}</span>
-              <b>${p.value.toLocaleString('en-US')}</b>
-            </div>`;
-          });
+          let html = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${params[0]?.axisValue}</div>`;
+          [...params].filter(p => p.value != null)
+            .sort((a, b) => a.value - b.value)  // 排名小的排前面
+            .forEach(p => {
+              html += `<div style="margin:3px 0;display:flex;justify-content:space-between;gap:20px">
+                <span>${p.marker}${p.seriesName}</span>
+                <b>#${p.value}</b></div>`;
+            });
           return html;
         },
       },
-      legend: {
-        data: activeGames,
-        bottom: 4,
-        type: 'scroll',
-        textStyle: { fontSize: 12 },
-      },
-      grid: { top: 20, right: 24, bottom: 48, left: 72 },
+      legend: { data: activeGames(), bottom: 4, type: 'scroll', textStyle: { fontSize: 12 } },
+      grid: { top: 20, right: 24, bottom: 48, left: 56 },
       xAxis: {
-        type: 'category',
-        data: dates,
-        boundaryGap: false,
-        axisLabel: {
-          formatter(val) {
-            // 只显示 YYYY-MM，ECharts 自动控制密度
-            return val.slice(0, 7);
-          },
-        },
+        type: 'category', data: weeks, boundaryGap: false,
+        axisLabel: { formatter: v => v.slice(5) },  // 显示 MM-DD
       },
       yAxis: {
         type: 'value',
-        axisLabel: {
-          formatter(v) {
-            if (v >= 1000000) return (v / 10000).toFixed(0) + '万';
-            if (v >= 10000)   return (v / 10000).toFixed(1) + '万';
-            return v.toString();
-          },
-        },
+        inverse: true,       // 排名第1在最上方
+        min: 1, max: 100,
         splitLine: { lineStyle: { color: '#f0f0f0' } },
+        axisLabel: { formatter: v => `#${v}` },
       },
       series,
-    }, /* notMerge */ true);
+    }, true);
   }
 
-  // ── 渲染表格
-  function renderTable() {
-    const activeGames = G.games.filter(g => selectedGames.has(g));
-    const indices = getIndices().reverse(); // 最新日期在上
+  function renderRankingsTable() {
+    if (!GRankings || !GRankings.weeks || GRankings.weeks.length === 0) return;
+    const ag = activeGames();
+    const weeks = [...GRankings.weeks].reverse();  // 最新周在上
 
-    // 表头
-    document.getElementById('table-head').innerHTML =
-      '<tr><th>日期</th>' +
-      activeGames.map(g => `<th>${g}</th>`).join('') +
-      '</tr>';
+    document.getElementById('rankings-thead').innerHTML =
+      '<tr><th>周次</th>' + ag.map(g => `<th>${g}</th>`).join('') + '</tr>';
 
-    // 表体
-    const rows = indices.map(i => {
-      const cells = activeGames
-        .map(g => `<td>${fmtNum(G.data[g][i])}</td>`)
-        .join('');
-      return `<tr><td>${G.dates[i]}</td>${cells}</tr>`;
-    });
-    document.getElementById('table-body').innerHTML = rows.join('');
-    document.getElementById('table-title').textContent =
-      `数据明细（${indices.length} 天）`;
+    document.getElementById('rankings-tbody').innerHTML =
+      weeks.map(week => {
+        const origIdx = GRankings.weeks.indexOf(week);
+        const cells = ag.map(g => {
+          const rank = (GRankings.data[g] || [])[origIdx];
+          return `<td>${fmtRank(rank)}</td>`;
+        }).join('');
+        return `<tr><td>${week}</td>${cells}</tr>`;
+      }).join('');
+
+    document.getElementById('rankings-table-title').textContent =
+      `排名记录（${weeks.length} 周）`;
   }
 
-  // ── 构建游戏复选框
+  // ══ 游戏复选框 ════════════════════════════
+
   function buildGameChecks() {
     const container = document.getElementById('game-checks');
-    container.innerHTML = G.games.map((name, i) => `
+    container.innerHTML = GPlayers.games.map((name, i) => `
       <label class="game-check">
         <input type="checkbox" value="${name}" checked />
         <span class="color-dot" style="background:${COLORS[i % COLORS.length]}"></span>
         ${name}
       </label>
     `).join('');
-
     container.querySelectorAll('input').forEach(cb => {
       cb.addEventListener('change', () => {
         if (cb.checked) selectedGames.add(cb.value);
         else            selectedGames.delete(cb.value);
-        renderChart();
-        renderTable();
+        refreshCurrentTab();
       });
     });
   }
 
-  // ── 初始化
+  // ══ Tab 切换 ══════════════════════════════
+
+  function refreshCurrentTab() {
+    if (activeTab === 'players') {
+      renderPlayersChart();
+      renderPlayersTable();
+    } else {
+      renderRankingsChart();
+      renderRankingsTable();
+    }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === tab)
+    );
+    document.querySelectorAll('.pane').forEach(p =>
+      p.classList.toggle('active', p.id === `pane-${tab}`)
+    );
+    // 时间范围只在在线人数 tab 显示
+    document.getElementById('range-group').classList.toggle('hidden', tab !== 'players');
+    refreshCurrentTab();
+    // 图表需要 resize 以适应新尺寸
+    setTimeout(() => {
+      chartPlayers  && chartPlayers.resize();
+      chartRankings && chartRankings.resize();
+    }, 50);
+  }
+
+  // ══ 初始化 ════════════════════════════════
+
   async function init() {
     try {
-      const resp = await fetch('games.json');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      G = await resp.json();
+      // 并行加载两个数据文件
+      const [r1, r2] = await Promise.all([
+        fetch('games.json'),
+        fetch('rankings.json').catch(() => null),
+      ]);
 
-      G.games.forEach(g => selectedGames.add(g));
+      GPlayers  = await r1.json();
+      GRankings = r2 ? await r2.json().catch(() => null) : null;
+
+      GPlayers.games.forEach(g => selectedGames.add(g));
 
       document.getElementById('meta').textContent =
-        `最后更新：${G.last_updated}　·　${G.games.length} 款游戏　·　${G.dates.length} 天数据`;
+        `在线人数更新：${GPlayers.last_updated}` +
+        (GRankings?.last_updated ? `　·　排名更新：${GRankings.last_updated}` : '');
 
       document.getElementById('loading').classList.add('hidden');
       document.getElementById('filter-card').classList.remove('hidden');
-      document.getElementById('chart-card').classList.remove('hidden');
-      document.getElementById('table-card').classList.remove('hidden');
+
+      // 显示在线人数卡片
+      document.getElementById('chart-players-card').classList.remove('hidden');
+      document.getElementById('table-players-card').classList.remove('hidden');
+
+      // 排名卡片：有数据则显示，无数据则显示提示
+      const hasRankings = GRankings && GRankings.weeks && GRankings.weeks.length > 0;
+      if (hasRankings) {
+        document.getElementById('chart-rankings-card').classList.remove('hidden');
+        document.getElementById('table-rankings-card').classList.remove('hidden');
+      } else {
+        document.getElementById('rankings-empty').classList.remove('hidden');
+      }
 
       buildGameChecks();
-      renderChart();
-      renderTable();
+      renderPlayersChart();
+      renderPlayersTable();
 
-      // 时间范围按钮
+      // ── Tab 按钮 ──
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // ── 时间范围按钮 ──
       document.getElementById('range-btns').querySelectorAll('.btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('#range-btns .btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           selectedRange = btn.dataset.range;
-          renderChart();
-          renderTable();
+          renderPlayersChart();
+          renderPlayersTable();
         });
       });
 
-      // 全选 / 取消
+      // ── 全选/取消 ──
       document.getElementById('btn-select-all').addEventListener('click', () => {
         const checks = document.querySelectorAll('#game-checks input');
         const allChecked = [...checks].every(c => c.checked);
@@ -392,12 +518,14 @@
           if (c.checked) selectedGames.add(c.value);
           else           selectedGames.delete(c.value);
         });
-        renderChart();
-        renderTable();
+        refreshCurrentTab();
       });
 
-      // 窗口缩放
-      window.addEventListener('resize', () => chart && chart.resize());
+      // ── Resize ──
+      window.addEventListener('resize', () => {
+        chartPlayers  && chartPlayers.resize();
+        chartRankings && chartRankings.resize();
+      });
 
     } catch (e) {
       document.getElementById('loading').textContent = '加载失败：' + e.message;
