@@ -459,9 +459,10 @@
   async function init() {
     try {
       // 并行加载两个数据文件
+      const _v = Date.now();
       const [r1, r2] = await Promise.all([
-        fetch('games.json'),
-        fetch('rankings.json').catch(() => null),
+        fetch(`games.json?v=${_v}`),
+        fetch(`rankings.json?v=${_v}`).catch(() => null),
       ]);
 
       GPlayers  = await r1.json();
