@@ -233,7 +233,7 @@ def main():
     }
     rdata["snapshots"] = [s for s in rdata.get("snapshots", []) if s["week"] != week]
     rdata["snapshots"].append(snapshot)
-    rdata["snapshots"] = sorted(rdata["snapshots"], key=lambda x: x["week"])[-52:]
+    rdata["snapshots"] = sorted(rdata["snapshots"], key=lambda x: x["week"])
 
     rdata["last_updated"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 

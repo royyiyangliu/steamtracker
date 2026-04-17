@@ -230,6 +230,13 @@
 
   // ══ 工具函数 ══════════════════════════════
 
+  // 周次存的是周一日期，显示时转为周二（Steam 更新日）
+  function fmtWeek(mondayStr) {
+    const d = new Date(mondayStr + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  }
+
   function fmtNum(n) {
     if (n == null) return '<span class="null-val">—</span>';
     return n.toLocaleString('en-US');
@@ -369,7 +376,7 @@
       grid: { top: 20, right: 24, bottom: 48, left: 56 },
       xAxis: {
         type: 'category', data: weeks, boundaryGap: false,
-        axisLabel: { formatter: v => v.slice(5) },  // 显示 MM-DD
+        axisLabel: { formatter: v => fmtWeek(v) },
       },
       yAxis: {
         type: 'value',
@@ -397,7 +404,7 @@
           const rank = (GRankings.data[g] || [])[origIdx];
           return `<td>${fmtRank(rank)}</td>`;
         }).join('');
-        return `<tr><td>${week}</td>${cells}</tr>`;
+        return `<tr><td>${fmtWeek(week)}</td>${cells}</tr>`;
       }).join('');
 
     document.getElementById('rankings-table-title').textContent =
