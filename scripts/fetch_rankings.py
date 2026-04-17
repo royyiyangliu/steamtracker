@@ -26,9 +26,10 @@ def get_week_start():
     return (today - datetime.timedelta(days=today.weekday())).isoformat()
 
 
-def scrape_top100():
+def scrape_top100(week):
     """
     返回 [{'rank': 1, 'appid': '730', 'name': 'Counter-Strike 2'}, ...]
+    week: 本周周一日期字符串，如 '2026-04-13'
     """
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -63,13 +64,11 @@ def scrape_top100():
 
         page.on("response", on_response)
 
-        print("加载 Steam Charts 页面...")
+        # 用带日期的周度快照 URL，避免抓到实时滚动数据
+        url = f"https://store.steampowered.com/charts/topsellers/global/{week}"
+        print(f"加载 Steam Charts 页面：{url}")
         try:
-            page.goto(
-                "https://store.steampowered.com/charts/topselling/global",
-                wait_until="networkidle",
-                timeout=60000,
-            )
+            page.goto(url, wait_until="networkidle", timeout=60000)
         except PWTimeout:
             print("  networkidle 超时，继续尝试...")
 
@@ -88,8 +87,15 @@ def scrape_top100():
             browser.close()
             return results
 
-        # ── 方法 2：DOM 解析 ──
+        # ── 方法 2：点击 "See all 100" 后 DOM 解析 ──
         print("  API 未命中，改用 DOM 解析...")
+        try:
+            btn = page.locator("button, a").filter(has_text="100").first
+            if btn.count() and btn.is_visible(timeout=3000):
+                btn.click()
+                time.sleep(2)
+        except Exception:
+            pass
         results = page.evaluate("""
             () => {
                 const out = [];
@@ -177,7 +183,7 @@ def main():
     print(f"本周标识: {week}\n")
 
     # ── 抓取 ──
-    top100 = scrape_top100()
+    top100 = scrape_top100(week)
 
     if not top100:
         print("未获取到有效数据，退出")
