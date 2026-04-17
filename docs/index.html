@@ -185,6 +185,7 @@
     <div class="card hidden" id="table-players-card">
       <div class="table-header">
         <span class="table-title" id="players-table-title"></span>
+        <button class="btn sm" id="btn-dl-players">下载 CSV</button>
       </div>
       <div class="table-scroll">
         <table><thead id="players-thead"></thead><tbody id="players-tbody"></tbody></table>
@@ -200,6 +201,7 @@
     <div class="card hidden" id="table-rankings-card">
       <div class="table-header">
         <span class="table-title" id="rankings-table-title"></span>
+        <button class="btn sm" id="btn-dl-rankings">下载 CSV</button>
       </div>
       <div class="table-scroll">
         <table><thead id="rankings-thead"></thead><tbody id="rankings-tbody"></tbody></table>
@@ -273,6 +275,23 @@
     return GPlayers.games.filter(g => selectedGames.has(g));
   }
 
+  function getRankingIndices() {
+    if (!GRankings) return [];
+    const weeks = GRankings.weeks;
+    if (selectedRange === 'ALL') return weeks.map((_, i) => i);
+    const last = new Date(weeks[weeks.length - 1] + 'T00:00:00');
+    const d = new Date(last);
+    if      (selectedRange === '1M') d.setMonth(d.getMonth() - 1);
+    else if (selectedRange === '3M') d.setMonth(d.getMonth() - 3);
+    else if (selectedRange === '6M') d.setMonth(d.getMonth() - 6);
+    else if (selectedRange === '1Y') d.setFullYear(d.getFullYear() - 1);
+    const res = [];
+    for (let i = 0; i < weeks.length; i++) {
+      if (new Date(weeks[i] + 'T00:00:00') >= d) res.push(i);
+    }
+    return res;
+  }
+
   // ══ 在线人数 Tab ══════════════════════════
 
   function renderPlayersChart() {
@@ -342,7 +361,8 @@
     if (!GRankings || !GRankings.weeks || GRankings.weeks.length === 0) return;
     if (!chartRankings) chartRankings = echarts.init(document.getElementById('chart-rankings'));
 
-    const weeks = GRankings.weeks;
+    const indices = getRankingIndices();
+    const weeks = indices.map(i => GRankings.weeks[i]);
     const series = activeGames().map(name => {
       const ci = GPlayers.games.indexOf(name);
       const rankData = GRankings.data[name] || [];
@@ -351,7 +371,7 @@
         symbol: 'circle', symbolSize: 6,
         lineStyle: { width: 2 },
         color: COLORS[ci % COLORS.length],
-        data: weeks.map((_, i) => rankData[i] ?? null),
+        data: indices.map(i => rankData[i] ?? null),
         connectNulls: false,
       };
     });
@@ -361,7 +381,7 @@
       tooltip: {
         trigger: 'axis',
         formatter(params) {
-          let html = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${params[0]?.axisValue}</div>`;
+          let html = `<div style="font-size:13px;font-weight:600;margin-bottom:6px">${fmtWeek(params[0]?.axisValue)}</div>`;
           [...params].filter(p => p.value != null)
             .sort((a, b) => a.value - b.value)  // 排名小的排前面
             .forEach(p => {
@@ -376,7 +396,7 @@
       grid: { top: 20, right: 24, bottom: 48, left: 56 },
       xAxis: {
         type: 'category', data: weeks, boundaryGap: false,
-        axisLabel: { formatter: v => fmtWeek(v) },
+        axisLabel: { formatter: v => v.slice(0, 7) },
       },
       yAxis: {
         type: 'value',
@@ -392,23 +412,52 @@
   function renderRankingsTable() {
     if (!GRankings || !GRankings.weeks || GRankings.weeks.length === 0) return;
     const ag = activeGames();
-    const weeks = [...GRankings.weeks].reverse();  // 最新周在上
+    const indices = [...getRankingIndices()].reverse();  // 最新周在上
 
     document.getElementById('rankings-thead').innerHTML =
       '<tr><th>周次</th>' + ag.map(g => `<th>${g}</th>`).join('') + '</tr>';
 
     document.getElementById('rankings-tbody').innerHTML =
-      weeks.map(week => {
-        const origIdx = GRankings.weeks.indexOf(week);
+      indices.map(i => {
+        const week = GRankings.weeks[i];
         const cells = ag.map(g => {
-          const rank = (GRankings.data[g] || [])[origIdx];
+          const rank = (GRankings.data[g] || [])[i];
           return `<td>${fmtRank(rank)}</td>`;
         }).join('');
         return `<tr><td>${fmtWeek(week)}</td>${cells}</tr>`;
       }).join('');
 
     document.getElementById('rankings-table-title').textContent =
-      `排名记录（${weeks.length} 周）`;
+      `排名记录（${indices.length} 周）`;
+  }
+
+  // ══ 下载 CSV ══════════════════════════════
+
+  function downloadCSV(rows, filename) {
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadPlayersCSV() {
+    const games = GPlayers.games;
+    const rows = [['Date', ...games]];
+    GPlayers.dates.forEach((date, i) => {
+      rows.push([date, ...games.map(g => GPlayers.data[g][i])]);
+    });
+    downloadCSV(rows, 'steam_players.csv');
+  }
+
+  function downloadRankingsCSV() {
+    const games = GPlayers.games;
+    const rows = [['Week', ...games]];
+    GRankings.weeks.forEach((week, i) => {
+      rows.push([fmtWeek(week), ...games.map(g => GRankings.data[g]?.[i])]);
+    });
+    downloadCSV(rows, 'steam_rankings.csv');
   }
 
   // ══ 游戏复选框 ════════════════════════════
@@ -451,8 +500,7 @@
     document.querySelectorAll('.pane').forEach(p =>
       p.classList.toggle('active', p.id === `pane-${tab}`)
     );
-    // 时间范围只在在线人数 tab 显示
-    document.getElementById('range-group').classList.toggle('hidden', tab !== 'players');
+    // 两个 tab 都显示时间范围
     refreshCurrentTab();
     // 图表需要 resize 以适应新尺寸
     setTimeout(() => {
@@ -512,8 +560,7 @@
           document.querySelectorAll('#range-btns .btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           selectedRange = btn.dataset.range;
-          renderPlayersChart();
-          renderPlayersTable();
+          refreshCurrentTab();
         });
       });
 
@@ -528,6 +575,10 @@
         });
         refreshCurrentTab();
       });
+
+      // ── 下载按钮 ──
+      document.getElementById('btn-dl-players').addEventListener('click', downloadPlayersCSV);
+      document.getElementById('btn-dl-rankings').addEventListener('click', downloadRankingsCSV);
 
       // ── Resize ──
       window.addEventListener('resize', () => {
