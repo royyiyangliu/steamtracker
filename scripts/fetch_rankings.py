@@ -64,8 +64,10 @@ def scrape_top100(week):
 
         page.on("response", on_response)
 
-        # 用带日期的周度快照 URL，避免抓到实时滚动数据
-        url = f"https://store.steampowered.com/charts/topsellers/global/{week}"
+        # URL 用上周二日期（= Monday key - 6天），Steam 会正确返回该周快照
+        monday = datetime.date.fromisoformat(week)
+        last_tuesday = monday - datetime.timedelta(days=6)
+        url = f"https://store.steampowered.com/charts/topsellers/global/{last_tuesday.year}-{last_tuesday.month}-{last_tuesday.day}"
         print(f"加载 Steam Charts 页面：{url}")
         try:
             page.goto(url, wait_until="networkidle", timeout=60000)
